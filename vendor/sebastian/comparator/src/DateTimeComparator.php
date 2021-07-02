@@ -1,14 +1,22 @@
-<?php
+<?php declare(strict_types=1);
 /*
- * This file is part of the Comparator package.
+ * This file is part of sebastian/comparator.
  *
  * (c) Sebastian Bergmann <sebastian@phpunit.de>
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
-
 namespace SebastianBergmann\Comparator;
+
+use function abs;
+use function floor;
+use function sprintf;
+use DateInterval;
+use DateTime;
+use DateTimeInterface;
+use DateTimeZone;
+use Exception;
 
 /**
  * Compares DateTimeInterface instances for equality.
@@ -25,8 +33,8 @@ class DateTimeComparator extends ObjectComparator
      */
     public function accepts($expected, $actual)
     {
-        return ($expected instanceof \DateTime || $expected instanceof \DateTimeInterface) &&
-            ($actual instanceof \DateTime || $actual instanceof \DateTimeInterface);
+        return ($expected instanceof DateTime || $expected instanceof DateTimeInterface) &&
+               ($actual instanceof DateTime || $actual instanceof DateTimeInterface);
     }
 
     /**
@@ -39,27 +47,29 @@ class DateTimeComparator extends ObjectComparator
      * @param bool  $ignoreCase   Case is ignored when set to true
      * @param array $processed    List of already processed elements (used to prevent infinite recursion)
      *
+     * @throws Exception
      * @throws ComparisonFailure
      */
-    public function assertEquals($expected, $actual, $delta = 0.0, $canonicalize = false, $ignoreCase = false, array &$processed = [])
+    public function assertEquals($expected, $actual, $delta = 0.0, $canonicalize = false, $ignoreCase = false, array &$processed = [])/*: void*/
     {
-        /** @var \DateTimeInterface $expected */
-        /** @var \DateTimeInterface $actual */
+        /** @var DateTimeInterface $expected */
+        /** @var DateTimeInterface $actual */
+        $absDelta = abs($delta);
+        $delta    = new DateInterval(sprintf('PT%dS', $absDelta));
+        $delta->f = $absDelta - floor($absDelta);
 
-        $delta = new \DateInterval(sprintf('PT%dS', abs($delta)));
+        $actualClone = (clone $actual)
+            ->setTimezone(new DateTimeZone('UTC'));
 
-        $actualClone = clone $actual;
-        $actualClone->setTimezone(new \DateTimeZone('UTC'));
+        $expectedLower = (clone $expected)
+            ->setTimezone(new DateTimeZone('UTC'))
+            ->sub($delta);
 
-        $expectedLower = clone $expected;
-        $expectedLower->setTimezone(new \DateTimeZone('UTC'));
-        $expectedLower->sub($delta);
+        $expectedUpper = (clone $expected)
+            ->setTimezone(new DateTimeZone('UTC'))
+            ->add($delta);
 
-        $expectedUpper = clone $expected;
-        $expectedUpper->setTimezone(new \DateTimeZone('UTC'));
-        $expectedUpper->add($delta);
-
-        if ($actual < $expectedLower || $actual > $expectedUpper) {
+        if ($actualClone < $expectedLower || $actualClone > $expectedUpper) {
             throw new ComparisonFailure(
                 $expected,
                 $actual,
@@ -76,7 +86,7 @@ class DateTimeComparator extends ObjectComparator
      * 'Invalid DateTimeInterface object' if the provided DateTimeInterface was not properly
      * initialized.
      */
-    private function dateTimeToString(\DateTimeInterface $datetime): string
+    private function dateTimeToString(DateTimeInterface $datetime): string
     {
         $string = $datetime->format('Y-m-d\TH:i:s.uO');
 
