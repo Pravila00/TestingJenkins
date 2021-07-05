@@ -57,6 +57,6 @@ class MarksTest extends TestCase
             "actual value is Numeric or not"
         );
         //Check the final mark is 98.75
-        $this->assertEquals(95.75,$final_mark);
+        $this->assertEquals(98.75,$final_mark);
     }
 }
